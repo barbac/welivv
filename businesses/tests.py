@@ -107,3 +107,59 @@ def test_Business_get_find_by_non_exisiting_state(db):
     response_businesses = views.Business().get(mock_request).content.decode("utf-8")
     response_businesses = json.loads(response_businesses)
     assert len(response_businesses) == 0  # no records
+
+
+def test_Business_put_create_a_record(db):
+    mock_request = MagicMock()
+    mock_request.GET.dict.return_value = PARAMETERS.copy()
+
+    response = views.Business().put(mock_request)
+    business = models.Business.objects.all().first()
+    business = business.__dict__
+    # get rid of dynamic attributes.
+    business.pop("_state")
+    business.pop("id")
+    business.pop("uuid")
+
+    assert views.serialize(PARAMETERS) == views.serialize(business)
+
+
+def test_Business_put_do_not_duplicate_records(db):
+    # nothing yet
+    assert 0 == len(models.Business.objects.all())
+
+    mock_request = MagicMock()
+    mock_request.GET.dict.return_value = PARAMETERS.copy()
+
+    # 1st attempt to create one.
+    response = views.Business().put(mock_request)
+    assert 1 == len(models.Business.objects.all())
+
+    # 2nd attemp doesn't create a new one. We still get 1.
+    response = views.Business().put(mock_request)
+    assert 1 == len(models.Business.objects.all())
+
+
+def test_Business_put_update_a_record(db):
+    # create the record
+    business = models.Business(**SAVED_VALUES)
+    business.save()
+
+    new_values = SAVED_VALUES.copy()
+    new_values["address"] = "new addres"
+    mock_request = RequestFactory().get("business", data=new_values)
+
+    response = views.Business().put(mock_request)
+    business.refresh_from_db()
+
+    # serialize
+    business.uuid = str(business.uuid)
+    business.created_at = str(business.created_at)
+
+    business_values = business.__dict__
+    # get rid of dynamic attributes.
+    business_values.pop("_state")
+    business_values.pop("id")
+    business_values.pop("_prefetched_objects_cache")
+
+    assert new_values == business_values
