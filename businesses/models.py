@@ -1,6 +1,24 @@
+from django.contrib.auth.models import User, Permission
 from uuid import uuid4
 from django.db import models
 from django.utils import timezone
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    token = models.CharField(max_length=50, unique=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = uuid4().hex[:6].upper()
+        super(UserProfile, self).save(*args, **kwargs)
+
+
+    def __str__(self):
+        return f"{self.id}"
+
+    class Meta():
+        permissions = [('create_business', 'update_business')]
 
 
 class Business(models.Model):

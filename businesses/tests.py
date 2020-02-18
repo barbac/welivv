@@ -44,6 +44,7 @@ def test_Business_get(db):
     business.save()
 
     mock_request = MagicMock()
+    mock_request.headers = {'token', '123'}
     mock_request.GET.dict.return_value = {}
     response_businesses = views.Business().get(mock_request).content.decode("utf-8")
     response_businesses = json.loads(response_businesses)

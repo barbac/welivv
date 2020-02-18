@@ -13,8 +13,10 @@ def serialize(data):
     return json.dumps(data, ensure_ascii=False, indent=2, default=lambda o: str(o))
 
 
-def json_response(data):
-    return HttpResponse(serialize(data), content_type="application/json")
+def json_response(data, status=200):
+    return HttpResponse(serialize(data), content_type="application/json",
+                        status=status
+                        )
 
 
 class BusinessForm(ModelForm):
@@ -33,9 +35,34 @@ class BusinessForm(ModelForm):
         ]
 
 
+def error_message(message, status):
+    return json_response(
+        {"status": "error", "message": message,},
+        status,
+    )
+
+
+def get_token_from_request(request):
+    return request.headers.get('token', None)
+
+def check_for_permission(profile, permission_codename):
+    user = profile.user
+    return user.has_perm(permission_codename)
+
 @method_decorator(csrf_exempt, name="dispatch")
 class Business(View):
     def get(self, request, *args, **kwargs):
+        token = get_token_from_request(request)
+        # print(request.HEADERS.get())
+        if token is None:
+            return error_message('No token found. you need to authenticate', 401)
+
+        try:
+            profile = models.UserProfile.objects.get(token=token)
+        except models.UserProfile.DoesNotExist:
+            #this means the token doens't exit in the db
+            return error_message("unauthorized", 401)
+
         parameters = request.GET.dict()
         filter_kwargs = {}
 
@@ -66,11 +93,28 @@ class Business(View):
         return json_response(businesses)
 
     def put(self, request, *args, **kwargs):
+        ###
+        token = get_token_from_request(request)
+        # print(request.HEADERS.get())
+        if token is None:
+            return error_message('No token found. you need to authenticate', 401)
+
+        try:
+            profile = models.UserProfile.objects.get(token=token)
+        except models.UserProfile.DoesNotExist:
+            #this means the token doens't exit in the db
+            return error_message("unauthorized", 401)
+        ###
+
+
         parameters = request.GET.dict()
 
         _id = parameters.pop("id", None)
         uuid = parameters.pop("uuid", None)
         if _id or uuid:
+            if not check_for_permission(profile, 'welivv.update_business'):
+                return error_message("forbidden", 403)
+
             # if we have an id or uuid it's an update
 
             ids = {}
@@ -95,6 +139,8 @@ class Business(View):
                 return json_response({"status": "error",})
         else:
             # creating a new record.
+            if not check_for_permission(profile, 'welivv.create_business'):
+                return error_message("forbidden", 403)
 
             form = BusinessForm(parameters)
             if not form.is_valid():

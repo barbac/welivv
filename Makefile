@@ -1,4 +1,4 @@
-.PHONY: init all migrate test server clean
+.PHONY: init all migrate test erver clean
 
 PIP_LOG := build/pip.log
 CSV := testdata/50k_businesses.csv
@@ -27,7 +27,7 @@ test:
 	py.test -v businesses/*
 
 server:
-	./manage.py runserver
+	./manage.py runserver 0.0.0.0:8000
 
 clean:
 	rm -f build/load_data
